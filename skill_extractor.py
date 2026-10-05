@@ -1,30 +1,38 @@
 import pandas as pd
-from typing import List, Dict, Set
+import logging
+from typing import List, Dict
+
+logger = logging.getLogger(__name__)
 
 def load_skill_dictionary(filepath: str = "data/skill_dictionary.csv") -> Dict[str, str]:
     try:
-        df = pd.read_csv(filepath)
-        return dict(zip(df['Skill'].str.lower(), df['Category']))
-    except Exception:
+        source_frame = pd.read_csv(filepath)
+        # Fast, clean dictionary comprehension parsing data rows efficiently
+        return {str(row['Skill']).strip().lower(): str(row['Category']).strip() 
+                for _, row in source_frame.iterrows()}
+    except Exception as error_flag:
+        logger.error(f"Failed to load vocabulary registry mapping file from {filepath}: {error_flag}")
         return {}
 
-def extract_skills(cleaned_text: str, skill_dict: Dict[str, str]) -> Dict[str, List[str]]:
-    found_skills: Set[str] = set()
-    words = cleaned_text.split()
-    
-    for skill in skill_dict.keys():
-        if len(skill.split()) > 1:
-            if skill in cleaned_text:
-                found_skills.add(skill)
-        else:
-            if skill in words:
-                found_skills.add(skill)
-                
-    categorized: Dict[str, List[str]] = {}
-    for skill in found_skills:
-        cat = skill_dict[skill]
-        if cat not in categorized:
-            categorized[cat] = []
-        categorized[cat].append(skill.title())
-        
-    return categorized
+def extract_skills(normalized_text: str, skill_registry: Dict[str, str]) -> Dict[str, List[str]]:
+    if not normalized_text or not skill_registry:
+        return {}
+
+    individual_tokens = set(normalized_text.split())
+    discovered_skills = set()
+
+    for target_skill in skill_registry.keys():
+        # Check phrase metrics or isolated terms using set lookup intersections
+        if ' ' in target_skill:
+            if target_skill in normalized_text:
+                discovered_skills.add(target_skill)
+        elif target_skill in individual_tokens:
+            discovered_skills.add(target_skill)
+
+    # Populate organized technical categories dynamically
+    categorized_metrics = {}
+    for validated_skill in discovered_skills:
+        skill_group = skill_registry[validated_skill]
+        categorized_metrics.setdefault(skill_group, []).append(validated_skill.title())
+
+    return categorized_metrics

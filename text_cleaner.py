@@ -1,12 +1,26 @@
 import re
+import logging
 
-def clean_text(text: str) -> str:
-    if not text:
+# Configure basic telemetry for debugging parsing pipelines
+logger = logging.getLogger(__name__)
+
+def clean_text(raw_input_stream: str) -> str:
+    if not raw_input_stream:
+        logger.warning("Empty string passed to normalization processor.")
         return ""
-    text = text.lower()
-    text = re.sub(r'\S+@\S+', '', text)
-    text = re.sub(r'http\S+|www\S+', '', text)
-    text = text.replace('\n', ' ').replace('\t', ' ')
-    text = re.sub(r'[^\w\s\+\#\.]', ' ', text)
-    text = re.sub(r'\s+', ' ', text).strip()
-    return text
+
+    # Normalize character casing globally
+    normalized = raw_input_stream.lower()
+    
+    # Strip out contact metadata noise (emails/links) to avoid matching skew
+    normalized = re.sub(r'\S+@\S+', ' ', normalized)
+    normalized = re.sub(r'https?://\S+|www\.\S+', ' ', normalized)
+    
+    # Standardize whitespace delimiters
+    normalized = normalized.replace('\n', ' ').replace('\t', ' ')
+    
+    # Isolate textual strings but safeguard critical development syntaxes (C++, C#, .NET)
+    normalized = re.sub(r'[^\w\s\+\#\.]', ' ', normalized)
+    
+    # Collapse irregular whitespace clusters
+    return " ".join(normalized.split()).strip()
